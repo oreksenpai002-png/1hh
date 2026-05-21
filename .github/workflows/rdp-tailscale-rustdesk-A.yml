@@ -78,38 +78,34 @@ jobs:
           -ArgumentList "/i","`"$rd`"","/quiet","/norestart" `
           -Wait
 
-      - name: Download AE2025
+      - name: Install 7zip
         run: |
-          $url = "https://drive.google.com/uc?export=download&id=1h6yyzRki9NSzy_lFbdTgKxmOUyrLLAvp"
+          choco install 7zip -y
+
+      - name: Download AE2025 RAR
+        run: |
+          $url = "PASTE_DIRECT_MEDIAFIRE_DOWNLOAD_LINK_HERE"
 
           Invoke-WebRequest `
           -Uri $url `
-          -OutFile "C:\ae.zip" `
+          -OutFile "C:\ae.rar" `
           -UseBasicParsing
 
           Write-Host "========== DOWNLOAD COMPLETE =========="
 
-          Get-Item "C:\ae.zip"
-
-      - name: Check Downloaded File
-        run: |
-          certutil -dump "C:\ae.zip"
+          Get-Item "C:\ae.rar"
 
       - name: Extract AE2025
         run: |
-          try {
-            Expand-Archive "C:\ae.zip" -DestinationPath "C:\AE2025" -Force
+          $pass = "lofix"
 
-            Write-Host "========== EXTRACTION SUCCESS =========="
-          }
-          catch {
-            Write-Host "========== EXTRACTION FAILED =========="
-            Write-Host $_.Exception.Message
+          & "C:\Program Files\7-Zip\7z.exe" x `
+          "C:\ae.rar" `
+          "-p$pass" `
+          "-oC:\AE2025" `
+          -y
 
-            Write-Host "Likely Google Drive HTML page downloaded instead of ZIP"
-
-            exit 1
-          }
+          Write-Host "========== EXTRACTION COMPLETE =========="
 
       - name: Find AfterFX
         run: |
@@ -117,7 +113,9 @@ jobs:
 
           if ($ae) {
             echo "AE_PATH=$($ae.FullName)" >> $env:GITHUB_ENV
-          } else {
+            Write-Host "FOUND: $($ae.FullName)"
+          }
+          else {
             Write-Error "AfterFX.exe not found"
             exit 1
           }
