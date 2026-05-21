@@ -3,7 +3,6 @@ name: RDP + Ngrok + RustDesk + AE2025 (A)
 on:
   workflow_dispatch:
     inputs:
-
       ngrok_token:
         description: "Ngrok Auth Token"
         required: true
@@ -27,11 +26,8 @@ defaults:
     shell: pwsh
 
 jobs:
-
   rdp:
-
     runs-on: windows-latest
-
     timeout-minutes: 370
 
     env:
@@ -46,12 +42,9 @@ jobs:
           $u = $env:RDP_USER
           $p = $env:RDP_PASS
 
-          $sec = ConvertTo-SecureString `
-          $p `
-          -AsPlainText `
-          -Force
+          $sec = ConvertTo-SecureString $p -AsPlainText -Force
 
-          if (-not (Get-LocalUser -Name $u -EA SilentlyContinue)) {
+          if (-not (Get-LocalUser -Name $u -ErrorAction SilentlyContinue)) {
 
             New-LocalUser `
             -Name $u `
@@ -68,7 +61,7 @@ jobs:
           }
 
           Set-ItemProperty `
-          "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
+          -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
           -Name "fDenyTSConnections" `
           -Value 0
 
@@ -93,42 +86,41 @@ jobs:
       - name: Auth Ngrok
         run: |
 
-          C:\ngrok\ngrok.exe authtoken `
-          "${{ inputs.ngrok_token }}"
+          C:\ngrok\ngrok.exe authtoken "${{ inputs.ngrok_token }}"
 
       - name: Start Ngrok Tunnel
         run: |
 
           Start-Process `
           -FilePath "C:\ngrok\ngrok.exe" `
-          -ArgumentList "tcp 3389 --log=C:\ngrok\ngrok.log" `
+          -ArgumentList "tcp 3389" `
           -WindowStyle Hidden
 
-          Start-Sleep -Seconds 20
+          Start-Sleep -Seconds 10
 
       - name: Show RDP Info
         run: |
+
+          Start-Sleep -Seconds 25
 
           $found = $false
 
           for ($i=1; $i -le 20; $i++) {
 
-            if (Test-Path "C:\ngrok\ngrok.log") {
+            try {
 
-              $content = Get-Content "C:\ngrok\ngrok.log"
+              $r = Invoke-RestMethod `
+              -Uri "http://127.0.0.1:4040/api/tunnels"
 
-              $line = $content | Select-String "url=tcp://"
+              $tcp = ($r.tunnels | Where-Object {
+                $_.proto -eq "tcp"
+              }).public_url
 
-              if ($line) {
-
-                $tcp = (
-                  $line.ToString() `
-                  -split "url="
-                )[1].Split(" ")[0]
+              if ($tcp) {
 
                 Write-Host ""
                 Write-Host "======================================="
-                Write-Host "            RDP READY"
+                Write-Host "             RDP READY"
                 Write-Host "======================================="
                 Write-Host ""
                 Write-Host "RDP ADDRESS:"
@@ -146,6 +138,11 @@ jobs:
 
                 break
               }
+
+            }
+            catch {
+
+              Write-Host "Waiting for ngrok..."
             }
 
             Start-Sleep -Seconds 5
@@ -154,8 +151,6 @@ jobs:
           if (-not $found) {
 
             Write-Error "NGROK TCP ADDRESS NOT FOUND"
-
-            Get-Content "C:\ngrok\ngrok.log"
 
             exit 1
           }
@@ -169,8 +164,6 @@ jobs:
           pyautogui `
           pynput `
           pillow
-
-          python -c "import pyautogui, pynput, PIL; print('PYTHON LIBS OK')"
 
       - name: Install RustDesk
         run: |
@@ -206,6 +199,8 @@ jobs:
           }
 
           Write-Host "DOWNLOAD COMPLETE"
+
+          Get-Item "C:\ae.rar"
 
       - name: Check File Size
         run: |
@@ -250,7 +245,6 @@ jobs:
 
             Start-Process `
             -FilePath $setup.FullName `
-            -ArgumentList "--silent" `
             -Wait
 
             Write-Host "INSTALL COMPLETE"
@@ -274,8 +268,7 @@ jobs:
 
           if ($ae) {
 
-            echo "AE_PATH=$($ae.FullName)" `
-            >> $env:GITHUB_ENV
+            echo "AE_PATH=$($ae.FullName)" >> $env:GITHUB_ENV
 
             Write-Host "FOUND AFTERFX:"
             Write-Host $ae.FullName
@@ -291,8 +284,6 @@ jobs:
         run: |
 
           Start-Process "$env:AE_PATH"
-
-          Write-Host "AFTER EFFECTS STARTED"
 
       - name: Keep Alive
         run: |
@@ -310,10 +301,8 @@ jobs:
 
       - name: Dispatch B
         if: always()
-
         env:
           GH_TOKEN: ${{ github.token }}
-
         run: |
 
           $cycles = [int]"${{ inputs.cycles }}"
@@ -323,7 +312,7 @@ jobs:
             $next = $cycles - 1
 
             $payload = @{
-              ngrok_token     = "${{ inputs.ngrok_token }}"
+              ngrok_token    = "${{ inputs.ngrok_token }}"
               runtime_minutes = "${{ inputs.runtime_minutes }}"
               cycles          = "$next"
             }
