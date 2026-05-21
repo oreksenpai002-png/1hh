@@ -84,7 +84,7 @@ jobs:
 
       - name: Download AE2025 RAR
         run: |
-          $url = "PASTE_DIRECT_MEDIAFIRE_DOWNLOAD_LINK_HERE"
+          $url = "https://www.mediafire.com/file_premium/vkaavzw9mjxsr9i/Adobe_After_Effects_2025_%2528Lofix%2529.rar/file"
 
           Invoke-WebRequest `
           -Uri $url `
