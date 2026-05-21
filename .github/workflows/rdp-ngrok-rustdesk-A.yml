@@ -3,6 +3,7 @@ name: RDP + Ngrok + RustDesk + AE2025 (A)
 on:
   workflow_dispatch:
     inputs:
+
       ngrok_token:
         description: "Ngrok Auth Token"
         required: true
@@ -100,7 +101,7 @@ jobs:
 
           Start-Process `
           -FilePath "C:\ngrok\ngrok.exe" `
-          -ArgumentList "tcp 3389" `
+          -ArgumentList "tcp 3389 --log=C:\ngrok\ngrok.log" `
           -WindowStyle Hidden
 
           Start-Sleep -Seconds 20
@@ -110,25 +111,24 @@ jobs:
 
           $found = $false
 
-          for ($i=1; $i -le 15; $i++) {
+          for ($i=1; $i -le 20; $i++) {
 
-            try {
+            if (Test-Path "C:\ngrok\ngrok.log") {
 
-              $r = Invoke-RestMethod `
-              "http://127.0.0.1:4040/api/tunnels"
+              $content = Get-Content "C:\ngrok\ngrok.log"
 
-              $tcp = (
-                $r.tunnels |
-                Where-Object {
-                  $_.proto -eq "tcp"
-                }
-              ).public_url
+              $line = $content | Select-String "url=tcp://"
 
-              if ($tcp) {
+              if ($line) {
+
+                $tcp = (
+                  $line.ToString() `
+                  -split "url="
+                )[1].Split(" ")[0]
 
                 Write-Host ""
                 Write-Host "======================================="
-                Write-Host "         RDP READY"
+                Write-Host "            RDP READY"
                 Write-Host "======================================="
                 Write-Host ""
                 Write-Host "RDP ADDRESS:"
@@ -146,17 +146,16 @@ jobs:
 
                 break
               }
-
             }
-            catch {
 
-              Start-Sleep -Seconds 5
-            }
+            Start-Sleep -Seconds 5
           }
 
           if (-not $found) {
 
-            Write-Error "NGROK TUNNEL NOT FOUND"
+            Write-Error "NGROK TCP ADDRESS NOT FOUND"
+
+            Get-Content "C:\ngrok\ngrok.log"
 
             exit 1
           }
