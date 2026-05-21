@@ -80,13 +80,36 @@ jobs:
 
       - name: Download AE2025
         run: |
+          $url = "https://drive.google.com/uc?export=download&id=1h6yyzRki9NSzy_lFbdTgKxmOUyrLLAvp"
+
           Invoke-WebRequest `
-          "https://drive.google.com/uc?export=download&id=1h6yyzRki9NSzy_lFbdTgKxmOUyrLLAvp" `
-          -OutFile "C:\ae.zip"
+          -Uri $url `
+          -OutFile "C:\ae.zip" `
+          -UseBasicParsing
+
+          Write-Host "========== DOWNLOAD COMPLETE =========="
+
+          Get-Item "C:\ae.zip"
+
+      - name: Check Downloaded File
+        run: |
+          certutil -dump "C:\ae.zip"
 
       - name: Extract AE2025
         run: |
-          Expand-Archive "C:\ae.zip" -DestinationPath "C:\AE2025"
+          try {
+            Expand-Archive "C:\ae.zip" -DestinationPath "C:\AE2025" -Force
+
+            Write-Host "========== EXTRACTION SUCCESS =========="
+          }
+          catch {
+            Write-Host "========== EXTRACTION FAILED =========="
+            Write-Host $_.Exception.Message
+
+            Write-Host "Likely Google Drive HTML page downloaded instead of ZIP"
+
+            exit 1
+          }
 
       - name: Find AfterFX
         run: |
@@ -109,19 +132,28 @@ jobs:
 
           try {
             $r = Invoke-RestMethod "http://127.0.0.1:4040/api/tunnels"
+
             $tcp = $r.tunnels.public_url
 
             Write-Host ""
-            Write-Host "======================="
-            Write-Host "RDP READY"
-            Write-Host "======================="
-            Write-Host "RDP: $tcp"
-            Write-Host "User: $env:RDP_USER"
-            Write-Host "Pass: $env:RDP_PASS"
-            Write-Host "======================="
+            Write-Host "======================================="
+            Write-Host "         AE2025 RDP READY"
+            Write-Host "======================================="
+            Write-Host ""
+            Write-Host "RDP ADDRESS:"
+            Write-Host "$tcp"
+            Write-Host ""
+            Write-Host "USERNAME:"
+            Write-Host "$env:RDP_USER"
+            Write-Host ""
+            Write-Host "PASSWORD:"
+            Write-Host "$env:RDP_PASS"
+            Write-Host ""
+            Write-Host "======================================="
           }
           catch {
             Write-Host "Ngrok tunnel not found"
+            exit 1
           }
 
       - name: Keep Alive
