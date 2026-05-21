@@ -108,44 +108,44 @@ jobs:
           Write-Host "========== EXTRACTION COMPLETE =========="
 
       - name: Run Adobe Installer
-  run: |
-    $setup = Get-ChildItem "C:\AE2025" -Recurse -Filter "Set-up.exe" | Select-Object -First 1
+        run: |
+          $setup = Get-ChildItem "C:\AE2025" -Recurse -Filter "Set-up.exe" | Select-Object -First 1
 
-    if ($setup) {
+          if ($setup) {
 
-      Write-Host "FOUND INSTALLER:"
-      Write-Host $setup.FullName
+            Write-Host "FOUND INSTALLER:"
+            Write-Host $setup.FullName
 
-      Start-Process `
-      -FilePath $setup.FullName `
-      -ArgumentList "--silent" `
-      -Wait
+            Start-Process `
+            -FilePath $setup.FullName `
+            -ArgumentList "--silent" `
+            -Wait
 
-      Write-Host "INSTALL COMPLETE"
-    }
-    else {
-      Write-Error "Set-up.exe not found"
-      exit 1
-    }
+            Write-Host "INSTALL COMPLETE"
+          }
+          else {
+            Write-Error "Set-up.exe not found"
+            exit 1
+          }
 
-- name: Find AfterFX
-  run: |
-    $ae = Get-ChildItem "C:\Program Files" -Recurse -Filter "AfterFX.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+      - name: Find AfterFX
+        run: |
+          $ae = Get-ChildItem "C:\Program Files" -Recurse -Filter "AfterFX.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 
-    if ($ae) {
-      echo "AE_PATH=$($ae.FullName)" >> $env:GITHUB_ENV
+          if ($ae) {
+            echo "AE_PATH=$($ae.FullName)" >> $env:GITHUB_ENV
 
-      Write-Host "FOUND AFTERFX:"
-      Write-Host $ae.FullName
-    }
-    else {
-      Write-Error "AfterFX.exe not found"
-      exit 1
-    }
+            Write-Host "FOUND AFTERFX:"
+            Write-Host $ae.FullName
+          }
+          else {
+            Write-Error "AfterFX.exe not found"
+            exit 1
+          }
 
-- name: Launch AE
-  run: |
-    Start-Process "$env:AE_PATH"
+      - name: Launch AE
+        run: |
+          Start-Process "$env:AE_PATH"
 
       - name: Show RDP Info
         run: |
