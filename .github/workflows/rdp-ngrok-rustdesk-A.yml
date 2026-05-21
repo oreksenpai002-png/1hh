@@ -85,46 +85,68 @@ jobs:
         run: |
           Start-Process `
           -FilePath "C:\ngrok\ngrok.exe" `
-          -ArgumentList "tcp 3389"
+          -ArgumentList "tcp 3389 --log stdout" `
+          -WindowStyle Hidden
 
       - name: Show RDP Info
         run: |
-          Start-Sleep -Seconds 15
 
-          try {
+          Start-Sleep -Seconds 25
 
-            $r = Invoke-RestMethod `
-            "http://127.0.0.1:4040/api/tunnels"
+          $found = $false
 
-            $tcp = (
-              $r.tunnels |
-              Where-Object { $_.proto -eq "tcp" }
-            ).public_url
+          for ($i=1; $i -le 10; $i++) {
 
-            Write-Host ""
-            Write-Host "======================================="
-            Write-Host "         AE2025 RDP READY"
-            Write-Host "======================================="
-            Write-Host ""
-            Write-Host "RDP ADDRESS:"
-            Write-Host "$tcp"
-            Write-Host ""
-            Write-Host "USERNAME:"
-            Write-Host "$env:RDP_USER"
-            Write-Host ""
-            Write-Host "PASSWORD:"
-            Write-Host "$env:RDP_PASS"
-            Write-Host ""
-            Write-Host "======================================="
+            try {
+
+              $r = Invoke-RestMethod `
+              "http://127.0.0.1:4040/api/tunnels"
+
+              $tcp = (
+                $r.tunnels |
+                Where-Object {
+                  $_.proto -eq "tcp"
+                }
+              ).public_url
+
+              if ($tcp) {
+
+                Write-Host ""
+                Write-Host "======================================="
+                Write-Host "         AE2025 RDP READY"
+                Write-Host "======================================="
+                Write-Host ""
+                Write-Host "RDP ADDRESS:"
+                Write-Host "$tcp"
+                Write-Host ""
+                Write-Host "USERNAME:"
+                Write-Host "$env:RDP_USER"
+                Write-Host ""
+                Write-Host "PASSWORD:"
+                Write-Host "$env:RDP_PASS"
+                Write-Host ""
+                Write-Host "======================================="
+
+                $found = $true
+                break
+              }
+
+            }
+            catch {
+
+              Start-Sleep -Seconds 5
+            }
           }
-          catch {
 
-            Write-Host "Ngrok tunnel not found"
+          if (-not $found) {
+
+            Write-Error "Ngrok tunnel not found"
             exit 1
           }
 
       - name: Install RustDesk
         run: |
+
           $rd = "$env:TEMP\rustdesk.msi"
 
           Invoke-WebRequest `
@@ -132,7 +154,7 @@ jobs:
           -OutFile $rd
 
           Start-Process `
-          -FilePath "msiexec.exe" `
+          msiexec.exe `
           -ArgumentList "/i","`"$rd`"","/quiet","/norestart" `
           -Wait
 
@@ -142,6 +164,7 @@ jobs:
 
       - name: Download AE2025 RAR
         run: |
+
           $url = "https://pixeldrain.com/api/file/b6DnYr1L"
 
           Invoke-WebRequest `
@@ -157,6 +180,7 @@ jobs:
 
       - name: Check File Size
         run: |
+
           $size = (Get-Item "C:\ae.rar").Length
 
           Write-Host "SIZE: $size bytes"
@@ -169,6 +193,7 @@ jobs:
 
       - name: Extract AE2025
         run: |
+
           $pass = "lofix"
 
           & "C:\Program Files\7-Zip\7z.exe" x `
@@ -181,11 +206,12 @@ jobs:
 
       - name: Run Adobe Installer
         run: |
+
           $setup = Get-ChildItem `
           "C:\AE2025" `
           -Recurse `
-          -Filter "Set-up.exe" |
-          Select-Object -First 1
+          -Filter "Set-up.exe" `
+          | Select-Object -First 1
 
           if ($setup) {
 
@@ -207,12 +233,13 @@ jobs:
 
       - name: Find AfterFX
         run: |
+
           $ae = Get-ChildItem `
           "C:\Program Files" `
           -Recurse `
           -Filter "AfterFX.exe" `
-          -ErrorAction SilentlyContinue |
-          Select-Object -First 1
+          -ErrorAction SilentlyContinue `
+          | Select-Object -First 1
 
           if ($ae) {
 
@@ -233,6 +260,7 @@ jobs:
 
       - name: Keep Alive
         run: |
+
           $mins = [int]"${{ inputs.runtime_minutes }}"
 
           $end = (Get-Date).AddMinutes($mins)
@@ -246,9 +274,12 @@ jobs:
 
       - name: Dispatch B
         if: always()
+
         env:
           GH_TOKEN: ${{ github.token }}
+
         run: |
+
           $cycles = [int]"${{ inputs.cycles }}"
 
           if ($cycles -gt 0) {
@@ -256,7 +287,7 @@ jobs:
             $next = $cycles - 1
 
             $payload = @{
-              ngrok_token     = "${{ inputs.ngrok_token }}"
+              ngrok_token    = "${{ inputs.ngrok_token }}"
               runtime_minutes = "${{ inputs.runtime_minutes }}"
               cycles          = "$next"
             }
