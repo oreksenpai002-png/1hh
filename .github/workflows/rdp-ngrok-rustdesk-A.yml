@@ -84,7 +84,7 @@ jobs:
 
       - name: Download AE2025 RAR
         run: |
-          $url = "https://download2391.mediafire.com/3nbgr4btaplgHmlsAgg3IheX4f9K-QGU2PVM0sxqqRKNirRw59DN233njFQw6e1L9P4wdahp-4pAUpnf_Hbb9Nq-5RdfR3wwth1QVMmvJ90J3ddtvff6kLD2CGhDdi6AXWzssXzON3TcmU0-cvjmrDEf-pOoYEsorMtMOCV9IwHK-3n2/vkaavzw9mjxsr9i/Adobe+After+Effects+2025+%28Lofix%29.rar"
+          $url = "https://store9.gofile.io/download/web/ZMqtH5/Adobe_After_Effects_2025_%28Lofix%29.rar"
 
           Invoke-WebRequest `
           -Uri $url `
@@ -94,6 +94,19 @@ jobs:
           Write-Host "========== DOWNLOAD COMPLETE =========="
 
           Get-Item "C:\ae.rar"
+
+      - name: Check File Size
+        run: |
+          Get-Item "C:\ae.rar"
+
+          $size = (Get-Item "C:\ae.rar").Length
+
+          Write-Host "SIZE: $size bytes"
+
+          if ($size -lt 100000000) {
+            Write-Error "RAR too small — download failed"
+            exit 1
+          }
 
       - name: Extract AE2025
         run: |
@@ -149,12 +162,13 @@ jobs:
 
       - name: Show RDP Info
         run: |
-          Start-Sleep -Seconds 10
+          Start-Sleep -Seconds 15
 
           try {
+
             $r = Invoke-RestMethod "http://127.0.0.1:4040/api/tunnels"
 
-            $tcp = $r.tunnels.public_url
+            $tcp = ($r.tunnels | Where-Object { $_.proto -eq "tcp" }).public_url
 
             Write-Host ""
             Write-Host "======================================="
