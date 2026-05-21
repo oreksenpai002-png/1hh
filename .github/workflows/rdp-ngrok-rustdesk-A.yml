@@ -27,7 +27,9 @@ defaults:
 
 jobs:
   rdp:
+
     runs-on: windows-latest
+
     timeout-minutes: 370
 
     env:
@@ -42,7 +44,10 @@ jobs:
           $u = $env:RDP_USER
           $p = $env:RDP_PASS
 
-          $sec = ConvertTo-SecureString $p -AsPlainText -Force
+          $sec = ConvertTo-SecureString `
+          $p `
+          -AsPlainText `
+          -Force
 
           if (-not (Get-LocalUser -Name $u -ErrorAction SilentlyContinue)) {
 
@@ -68,7 +73,9 @@ jobs:
           Enable-NetFirewallRule `
           -DisplayGroup "Remote Desktop"
 
+          Write-Host "======================================="
           Write-Host "RDP ENABLED"
+          Write-Host "======================================="
 
       - name: Install Ngrok
         run: |
@@ -93,30 +100,33 @@ jobs:
 
           Start-Process `
           -FilePath "C:\ngrok\ngrok.exe" `
-          -ArgumentList "tcp 3389" `
-          -WindowStyle Hidden
+          -ArgumentList "tcp","3389","--log","stdout" `
+          -NoNewWindow
 
-          Start-Sleep -Seconds 10
+          Start-Sleep -Seconds 15
 
       - name: Show RDP Info
         run: |
 
-          Start-Sleep -Seconds 25
+          Start-Sleep -Seconds 20
 
           $found = $false
 
-          for ($i=1; $i -le 20; $i++) {
+          for ($i = 1; $i -le 30; $i++) {
 
             try {
 
-              $r = Invoke-RestMethod `
-              -Uri "http://127.0.0.1:4040/api/tunnels"
+              $response = Invoke-WebRequest `
+              -Uri "http://127.0.0.1:4040/api/tunnels" `
+              -UseBasicParsing
 
-              $tcp = ($r.tunnels | Where-Object {
+              $json = $response.Content | ConvertFrom-Json
+
+              $tcp = ($json.tunnels | Where-Object {
                 $_.proto -eq "tcp"
               }).public_url
 
-              if ($tcp) {
+              if ($tcp -and $tcp.StartsWith("tcp://")) {
 
                 Write-Host ""
                 Write-Host "======================================="
@@ -142,7 +152,7 @@ jobs:
             }
             catch {
 
-              Write-Host "Waiting for ngrok..."
+              Write-Host "Waiting for ngrok api..."
             }
 
             Start-Sleep -Seconds 5
@@ -150,7 +160,18 @@ jobs:
 
           if (-not $found) {
 
-            Write-Error "NGROK TCP ADDRESS NOT FOUND"
+            Write-Host ""
+            Write-Host "======================================="
+            Write-Host "            NGROK FAILED"
+            Write-Host "======================================="
+            Write-Host ""
+            Write-Host "Possible Reasons:"
+            Write-Host "1. Invalid token"
+            Write-Host "2. Ngrok session limit"
+            Write-Host "3. Tunnel not created"
+            Write-Host ""
+
+            Get-Process ngrok -ErrorAction SilentlyContinue
 
             exit 1
           }
@@ -301,8 +322,10 @@ jobs:
 
       - name: Dispatch B
         if: always()
+
         env:
           GH_TOKEN: ${{ github.token }}
+
         run: |
 
           $cycles = [int]"${{ inputs.cycles }}"
@@ -312,7 +335,7 @@ jobs:
             $next = $cycles - 1
 
             $payload = @{
-              ngrok_token    = "${{ inputs.ngrok_token }}"
+              ngrok_token     = "${{ inputs.ngrok_token }}"
               runtime_minutes = "${{ inputs.runtime_minutes }}"
               cycles          = "$next"
             }
