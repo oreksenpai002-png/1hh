@@ -26,8 +26,11 @@ defaults:
     shell: pwsh
 
 jobs:
+
   rdp:
+
     runs-on: windows-latest
+
     timeout-minutes: 370
 
     env:
@@ -38,10 +41,14 @@ jobs:
 
       - name: Enable RDP
         run: |
+
           $u = $env:RDP_USER
           $p = $env:RDP_PASS
 
-          $sec = ConvertTo-SecureString $p -AsPlainText -Force
+          $sec = ConvertTo-SecureString `
+          $p `
+          -AsPlainText `
+          -Force
 
           if (-not (Get-LocalUser -Name $u -EA SilentlyContinue)) {
 
@@ -61,14 +68,17 @@ jobs:
 
           Set-ItemProperty `
           "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
-          -Name fDenyTSConnections `
+          -Name "fDenyTSConnections" `
           -Value 0
 
           Enable-NetFirewallRule `
           -DisplayGroup "Remote Desktop"
 
+          Write-Host "RDP ENABLED"
+
       - name: Install Ngrok
         run: |
+
           Invoke-WebRequest `
           "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" `
           -OutFile "ngrok.zip"
@@ -77,25 +87,30 @@ jobs:
           "ngrok.zip" `
           -DestinationPath "C:\ngrok"
 
+          Write-Host "NGROK INSTALLED"
+
       - name: Auth Ngrok
         run: |
-          C:\ngrok\ngrok.exe authtoken "${{ inputs.ngrok_token }}"
+
+          C:\ngrok\ngrok.exe authtoken `
+          "${{ inputs.ngrok_token }}"
 
       - name: Start Ngrok Tunnel
         run: |
+
           Start-Process `
           -FilePath "C:\ngrok\ngrok.exe" `
-          -ArgumentList "tcp 3389 --log stdout" `
+          -ArgumentList "tcp 3389" `
           -WindowStyle Hidden
+
+          Start-Sleep -Seconds 20
 
       - name: Show RDP Info
         run: |
 
-          Start-Sleep -Seconds 25
-
           $found = $false
 
-          for ($i=1; $i -le 10; $i++) {
+          for ($i=1; $i -le 15; $i++) {
 
             try {
 
@@ -113,7 +128,7 @@ jobs:
 
                 Write-Host ""
                 Write-Host "======================================="
-                Write-Host "         AE2025 RDP READY"
+                Write-Host "         RDP READY"
                 Write-Host "======================================="
                 Write-Host ""
                 Write-Host "RDP ADDRESS:"
@@ -128,6 +143,7 @@ jobs:
                 Write-Host "======================================="
 
                 $found = $true
+
                 break
               }
 
@@ -140,9 +156,22 @@ jobs:
 
           if (-not $found) {
 
-            Write-Error "Ngrok tunnel not found"
+            Write-Error "NGROK TUNNEL NOT FOUND"
+
             exit 1
           }
+
+      - name: Install Python libs
+        run: |
+
+          python -m pip install --upgrade pip
+
+          python -m pip install `
+          pyautogui `
+          pynput `
+          pillow
+
+          python -c "import pyautogui, pynput, PIL; print('PYTHON LIBS OK')"
 
       - name: Install RustDesk
         run: |
@@ -158,8 +187,11 @@ jobs:
           -ArgumentList "/i","`"$rd`"","/quiet","/norestart" `
           -Wait
 
+          Write-Host "RUSTDESK INSTALLED"
+
       - name: Install 7zip
         run: |
+
           choco install 7zip -y
 
       - name: Download AE2025 RAR
@@ -174,9 +206,7 @@ jobs:
             "User-Agent" = "Mozilla/5.0"
           }
 
-          Write-Host "========== DOWNLOAD COMPLETE =========="
-
-          Get-Item "C:\ae.rar"
+          Write-Host "DOWNLOAD COMPLETE"
 
       - name: Check File Size
         run: |
@@ -187,7 +217,8 @@ jobs:
 
           if ($size -lt 1000000000) {
 
-            Write-Error "RAR too small — download failed"
+            Write-Error "RAR TOO SMALL"
+
             exit 1
           }
 
@@ -202,7 +233,7 @@ jobs:
           "-oC:\AE2025" `
           -y
 
-          Write-Host "========== EXTRACTION COMPLETE =========="
+          Write-Host "EXTRACTION COMPLETE"
 
       - name: Run Adobe Installer
         run: |
@@ -227,7 +258,8 @@ jobs:
           }
           else {
 
-            Write-Error "Set-up.exe not found"
+            Write-Error "SET-UP.EXE NOT FOUND"
+
             exit 1
           }
 
@@ -243,20 +275,25 @@ jobs:
 
           if ($ae) {
 
-            echo "AE_PATH=$($ae.FullName)" >> $env:GITHUB_ENV
+            echo "AE_PATH=$($ae.FullName)" `
+            >> $env:GITHUB_ENV
 
             Write-Host "FOUND AFTERFX:"
             Write-Host $ae.FullName
           }
           else {
 
-            Write-Error "AfterFX.exe not found"
+            Write-Error "AFTERFX.EXE NOT FOUND"
+
             exit 1
           }
 
       - name: Launch AE
         run: |
+
           Start-Process "$env:AE_PATH"
+
+          Write-Host "AFTER EFFECTS STARTED"
 
       - name: Keep Alive
         run: |
@@ -267,7 +304,7 @@ jobs:
 
           while ((Get-Date) -lt $end) {
 
-            Write-Host "AE2025 RDP Running..."
+            Write-Host "AE2025 RDP RUNNING..."
 
             Start-Sleep -Seconds 60
           }
@@ -287,7 +324,7 @@ jobs:
             $next = $cycles - 1
 
             $payload = @{
-              ngrok_token    = "${{ inputs.ngrok_token }}"
+              ngrok_token     = "${{ inputs.ngrok_token }}"
               runtime_minutes = "${{ inputs.runtime_minutes }}"
               cycles          = "$next"
             }
