@@ -87,6 +87,41 @@ jobs:
           -ArgumentList "/i","`"$rd`"","/quiet","/norestart" `
           -Wait
 
+          - name: Show RDP Info
+        run: |
+          Start-Sleep -Seconds 15
+
+          try {
+
+            $r = Invoke-RestMethod `
+            "http://127.0.0.1:4040/api/tunnels"
+
+            $tcp = ($r.tunnels | Where-Object {
+              $_.proto -eq "tcp"
+            }).public_url
+
+            Write-Host ""
+            Write-Host "======================================="
+            Write-Host "         AE2025 RDP READY"
+            Write-Host "======================================="
+            Write-Host ""
+            Write-Host "RDP ADDRESS:"
+            Write-Host "$tcp"
+            Write-Host ""
+            Write-Host "USERNAME:"
+            Write-Host "$env:RDP_USER"
+            Write-Host ""
+            Write-Host "PASSWORD:"
+            Write-Host "$env:RDP_PASS"
+            Write-Host ""
+            Write-Host "======================================="
+          }
+          catch {
+
+            Write-Host "Ngrok tunnel not found"
+            exit 1
+          }
+
       - name: Install 7zip
         run: |
           choco install 7zip -y
@@ -180,40 +215,6 @@ jobs:
         run: |
           Start-Process "$env:AE_PATH"
 
-      - name: Show RDP Info
-        run: |
-          Start-Sleep -Seconds 15
-
-          try {
-
-            $r = Invoke-RestMethod `
-            "http://127.0.0.1:4040/api/tunnels"
-
-            $tcp = ($r.tunnels | Where-Object {
-              $_.proto -eq "tcp"
-            }).public_url
-
-            Write-Host ""
-            Write-Host "======================================="
-            Write-Host "         AE2025 RDP READY"
-            Write-Host "======================================="
-            Write-Host ""
-            Write-Host "RDP ADDRESS:"
-            Write-Host "$tcp"
-            Write-Host ""
-            Write-Host "USERNAME:"
-            Write-Host "$env:RDP_USER"
-            Write-Host ""
-            Write-Host "PASSWORD:"
-            Write-Host "$env:RDP_PASS"
-            Write-Host ""
-            Write-Host "======================================="
-          }
-          catch {
-
-            Write-Host "Ngrok tunnel not found"
-            exit 1
-          }
 
       - name: Keep Alive
         run: |
