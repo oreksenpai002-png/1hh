@@ -84,7 +84,7 @@ jobs:
 
       - name: Download AE2025 RAR
         run: |
-          $url = "https://store9.gofile.io/download/web/ZMqtH5/Adobe_After_Effects_2025_%28Lofix%29.rar"
+          $url = "https://gofile.io/download/web/ZMqtH5"
 
           Invoke-WebRequest `
           -Uri $url `
